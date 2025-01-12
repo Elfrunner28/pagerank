@@ -5,7 +5,7 @@ import sys
 import math 
 
 DAMPING = 0.85
-SAMPLES = 100000
+SAMPLES = 1000000
 
 
 def main():
@@ -71,17 +71,18 @@ def transition_model(corpus, page, damping_factor):
 
     damping_chance = (1-damping_factor) / num_pages #this is the 1-D chance that the next page is randomly selected
 
-    
-    random_link_probability = DAMPING/len(corpus[page])
+    if len(corpus[page]) == 0: #if the page has no links, then the damping chance is 1/num_pages
+        damping_chance = 1/num_pages
+    else:
+        random_link_probability = DAMPING/len(corpus[page])
 
     
     #corpus: {"1.html": {"2.html", "3.html"}, "2.html": {"3.html"}, "3.html": {"2.html"}}
 
     for linkedpage in corpus: #this loops through all the pages in the world
         transition_model_result_dict[linkedpage] = damping_chance #every page has a damping chance of getting selected, regardless if they are linked in the page
-        if linkedpage in corpus[page]: #if the page is linked in the arg page
-            transition_model_result_dict[linkedpage] += random_link_probability #they might be selected at random, so increase there chances
-            #NOT SURE IF IT SHOULD BE 1 OR DAMPING
+        if linkedpage in corpus[page]: #if the page is linked in the original page
+            transition_model_result_dict[linkedpage] += random_link_probability #they might be selected at random, so increase their chances
 
     return transition_model_result_dict
             
@@ -165,13 +166,18 @@ def iterate_pagerank(corpus, damping_factor):
     while True:
         
         for i in corpus:
-            for p in pagerank_sum:
-                if p in corpus[i]:
-                    pagerank_sum[p] += (pagerank_one[i]/len(corpus[i]))
+            for p in pagerank_sum: #loops through all the pages in the corpus
+                if len(corpus[i]) == 0:
+                    pagerank_sum[p] += (pagerank_one[i]/num_pages) #if a page has no links, it is linked to all pages 
+                elif p in corpus[i]: #if the page is linked in the original page
+                    pagerank_sum[p] += (pagerank_one[i]/len(corpus[i])) #add the pagerank of the original page / the number of links in the original page to the pagerank sum of the page
+        #pagerank sum is the percent chance that the page is selected based off all of its appearances in other pages.
+        
         count = 0
-        for p in pagerank_two:
-            pagerank_two[p] = damping_chance + damping_factor*pagerank_sum[p]
-            if not math.isclose(pagerank_one[p],pagerank_two[p],abs_tol=0.001):
+
+        for p in pagerank_two: #loops through all the pages in the corpus
+            pagerank_two[p] = damping_chance + damping_factor*pagerank_sum[p] #update the pagerank of the page
+            if not math.isclose(pagerank_one[p],pagerank_two[p],abs_tol=0.001): #if the pagerank of the page is not close to the pagerank of the page, then increment the count
                 count += 1
             pagerank_one[p] = pagerank_two[p]
             pagerank_sum[p] = 0
